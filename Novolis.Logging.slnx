@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Novolis.Logging.Contracts/Novolis.Logging.Contracts.csproj" />
+    <Project Path="src/Novolis.Logging.Core/Novolis.Logging.Core.csproj" />
+    <Project Path="src/Novolis.Logging.Diagnostics/Novolis.Logging.Diagnostics.csproj" />
+    <Project Path="src/Novolis.Logging.Transports/Novolis.Logging.Transports.csproj" />
+    <Project Path="src/Novolis.Logging.Faster/Novolis.Logging.Faster.csproj" />
+    <Project Path="src/Novolis.Logging.Agent/Novolis.Logging.Agent.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Novolis.Logging.Unit/Novolis.Logging.Unit.csproj" />
+  </Folder>
+</Solution>

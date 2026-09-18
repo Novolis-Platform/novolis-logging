@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Logging.Agent</PackageId>
+    <Description>Agent Surface host for Novolis remote logging (snapshot tail, subscribe, setlevel/clear).</Description>
+    <IsPackable>true</IsPackable>
+    <RootNamespace>Novolis.Logging.Agent</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Agent.Core" />
+    <PackageReference Include="Novolis.Agent.Surface" />
+    <ProjectReference Include="..\Novolis.Logging.Transports\Novolis.Logging.Transports.csproj" />
+  </ItemGroup>
+</Project>

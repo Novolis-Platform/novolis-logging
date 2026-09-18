@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Logging.Transports</PackageId>
+    <Description>HTTP ingest/SSE and LocalIpc hosts for Novolis remote logging.</Description>
+    <IsPackable>true</IsPackable>
+    <RootNamespace>Novolis.Logging.Transports</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Transports.LocalIpc" />
+    <ProjectReference Include="..\Novolis.Logging.Core\Novolis.Logging.Core.csproj" />
+  </ItemGroup>
+</Project>
