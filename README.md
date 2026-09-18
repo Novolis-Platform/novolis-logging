@@ -1,3 +1,22 @@
+<!-- novolis-package-index:start -->
+> **GitHub Packages shows this repository README on every package page** (upstream limitation).
+> Open the **package README** for install and quick start — embedded in each .nupkg and linked below.
+
+## Published packages
+
+| Package | Install | Package README |
+|---------|---------|----------------|
+| `Novolis.Logging.Agent` | `dotnet add package Novolis.Logging.Agent` | [README](https://github.com/Novolis-Platform/novolis-logging/blob/main/src/Novolis.Logging.Agent/README.md) |
+| `Novolis.Logging.Contracts` | `dotnet add package Novolis.Logging.Contracts` | [README](https://github.com/Novolis-Platform/novolis-logging/blob/main/src/Novolis.Logging.Contracts/README.md) |
+| `Novolis.Logging.Core` | `dotnet add package Novolis.Logging.Core` | [README](https://github.com/Novolis-Platform/novolis-logging/blob/main/src/Novolis.Logging.Core/README.md) |
+| `Novolis.Logging.Diagnostics` | `dotnet add package Novolis.Logging.Diagnostics` | [README](https://github.com/Novolis-Platform/novolis-logging/blob/main/src/Novolis.Logging.Diagnostics/README.md) |
+| `Novolis.Logging.Faster` | `dotnet add package Novolis.Logging.Faster` | [README](https://github.com/Novolis-Platform/novolis-logging/blob/main/src/Novolis.Logging.Faster/README.md) |
+| `Novolis.Logging.Transports` | `dotnet add package Novolis.Logging.Transports` | [README](https://github.com/Novolis-Platform/novolis-logging/blob/main/src/Novolis.Logging.Transports/README.md) |
+
+For NuGet.org and Visual Studio, the **embedded** README.md inside each package is authoritative.
+
+<!-- novolis-package-index:end -->
+
 <!-- novolis-marketing:start -->
 <p align="center">
   <a href="https://github.com/Novolis-Platform">
@@ -10,17 +29,20 @@
 </p>
 
 <p align="center">
-  <strong>Logging building blocks</strong><br/>
-  Logging helpers shared across Novolis libraries and apps.
+  <strong>Logging and diagnostics</strong><br/>
+  Logging and durable diagnostics shared across Novolis libraries and apps.
 </p>
 
 <p align="center">
+  <a href="https://novolis-platform.github.io/.github/novolis-logging/"><img src="https://img.shields.io/badge/docs-portfolio-0a7ea3" alt="docs"/></a>
   <a href="https://github.com/Novolis-Platform/novolis-logging/actions"><img src="https://img.shields.io/github/actions/workflow/status/Novolis-Platform/novolis-logging/merge.yml?branch=main&label=merge&logo=github" alt="merge"/></a>
   <a href="https://github.com/orgs/Novolis-Platform/packages?repo_name=novolis-logging"><img src="https://img.shields.io/badge/packages-GitHub%20Packages-0a7ea3?logo=nuget" alt="packages"/></a>
   <a href="https://github.com/Novolis-Platform"><img src="https://img.shields.io/badge/org-Novolis--Platform-111827" alt="org"/></a>
 </p>
 
 <p align="center">
+  <a href="https://novolis-platform.github.io/.github/novolis-logging/">Docs</a>
+  ·
   <a href="https://nuget.pkg.github.com/Novolis-Platform/index.json"><code>https://nuget.pkg.github.com/Novolis-Platform/index.json</code></a>
   ·
   <a href="https://github.com/Novolis-Platform/.github/blob/main/profile/README.md">Org landing</a>
