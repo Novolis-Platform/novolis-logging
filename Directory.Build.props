@@ -21,6 +21,12 @@
   <PropertyGroup>
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
+  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)\README.md')">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\README.md')">
+    <None Update="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
   <Import Project="$(MSBuildThisFileDirectory)..\novolis-governance\build\Novolis.GitHubPackages.props"
           Condition="Exists('$(MSBuildThisFileDirectory)..\novolis-governance\build\Novolis.GitHubPackages.props')" />
 </Project>
