@@ -6,8 +6,8 @@
     <RootNamespace>Novolis.Logging.Agent</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Novolis.Agent.Core" />
-    <PackageReference Include="Novolis.Agent.Surface" />
+    <LibraryReference Include="Novolis.Agent.Core" />
+    <LibraryReference Include="Novolis.Agent.Surface" />
     <ProjectReference Include="..\Novolis.Logging.Transports\Novolis.Logging.Transports.csproj" />
   </ItemGroup>
 </Project>
