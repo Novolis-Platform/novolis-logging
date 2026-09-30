@@ -25,4 +25,10 @@ public interface IDiagnosticJournal
 
     /// <summary>Returns retained journal files, newest first.</summary>
     IReadOnlyList<string> GetRecentFiles();
+
+    /// <summary>
+    /// Returns recent speech and failure lines as readable text, oldest first.
+    /// Hosting noise is omitted so the readout is the activity that matters.
+    /// </summary>
+    string ReadRecentSummary(int maxLines = 12);
 }

@@ -119,6 +119,109 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
             : Array.Empty<string>();
 
     /// <inheritdoc />
+    public string ReadRecentSummary(int maxLines = 12)
+    {
+        if (maxLines < 1)
+            maxLines = 1;
+
+        var included = new List<string>();
+        lock (_gate)
+        {
+            foreach (var path in GetRecentFiles().Reverse())
+            {
+                string[] raw;
+                try
+                {
+                    raw = File.ReadAllLines(path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                foreach (var rawLine in raw)
+                {
+                    if (TryFormatLine(rawLine, out var formatted))
+                        included.Add(formatted);
+                }
+            }
+        }
+
+        if (included.Count == 0)
+            return string.Empty;
+        if (included.Count > maxLines)
+            included = included.GetRange(included.Count - maxLines, maxLines);
+        return string.Join(Environment.NewLine, included);
+    }
+
+    private static bool TryFormatLine(string rawLine, out string formatted)
+    {
+        formatted = string.Empty;
+        if (string.IsNullOrWhiteSpace(rawLine))
+            return false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawLine);
+            var root = document.RootElement;
+            var level = root.TryGetProperty("L", out var levelValue) &&
+                        levelValue.TryGetInt32(out var parsedLevel)
+                ? parsedLevel
+                : (int)LogLevel.Information;
+            var category = root.TryGetProperty("C", out var categoryValue)
+                ? categoryValue.GetString() ?? string.Empty
+                : string.Empty;
+            if (!IncludeInSummary(category, level))
+                return false;
+
+            var message = root.TryGetProperty("M", out var messageValue)
+                ? messageValue.GetString() ?? string.Empty
+                : string.Empty;
+            var when = root.TryGetProperty("T", out var timeValue) &&
+                       timeValue.TryGetInt64(out var unixMs)
+                ? DateTimeOffset.FromUnixTimeMilliseconds(unixMs).ToLocalTime()
+                    .ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
+                : "unknown-time";
+            var exception = root.TryGetProperty("X", out var exceptionValue) &&
+                            exceptionValue.ValueKind == JsonValueKind.String
+                ? FirstLine(exceptionValue.GetString())
+                : null;
+            formatted = string.IsNullOrWhiteSpace(exception)
+                ? $"{when}  {LevelName(level)}  {message}"
+                : $"{when}  {LevelName(level)}  {message} {exception}";
+            return !string.IsNullOrWhiteSpace(message);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IncludeInSummary(string category, int level) =>
+        category.Contains("ReadAloud", StringComparison.Ordinal) ||
+        category.StartsWith("Novolis.Diagnostics", StringComparison.Ordinal) ||
+        level >= (int)LogLevel.Warning;
+
+    private static string LevelName(int level) => level switch
+    {
+        (int)LogLevel.Trace => "Trace",
+        (int)LogLevel.Debug => "Debug",
+        (int)LogLevel.Information => "Information",
+        (int)LogLevel.Warning => "Warning",
+        (int)LogLevel.Error => "Error",
+        (int)LogLevel.Critical => "Critical",
+        _ => "Log",
+    };
+
+    private static string? FirstLine(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+        var line = text.Replace('\r', '\n').Split('\n', 2)[0].Trim();
+        return line.Length <= 180 ? line : line[..180];
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         lock (_gate)

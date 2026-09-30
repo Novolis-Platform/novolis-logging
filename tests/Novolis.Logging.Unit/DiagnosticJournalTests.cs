@@ -29,6 +29,11 @@ public sealed class DiagnosticJournalTests
             await Assert.That(content).Contains("Failed operation.");
             await Assert.That(content).Contains("boom");
             await Assert.That(content).Contains("bad argument");
+
+            var summary = journal.ReadRecentSummary();
+            await Assert.That(summary).Contains("Failed operation.");
+            await Assert.That(summary).Contains("Unhandled exception.");
+            await Assert.That(summary).Contains("Diagnostic journal started");
         }
         finally
         {
