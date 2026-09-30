@@ -5,44 +5,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Novolis.Logging.Diagnostics;
 
-/// <summary>Options for a bounded, app-private diagnostic journal.</summary>
-public sealed class DiagnosticJournalOptions
-{
-    /// <summary>Directory where journal files are stored.</summary>
-    public required string DirectoryPath { get; init; }
-
-    /// <summary>Stable product name written to the journal header.</summary>
-    public required string ApplicationName { get; init; }
-
-    /// <summary>Maximum size of one journal file before a new file is started.</summary>
-    public long MaximumFileBytes { get; init; } = 1_048_576;
-
-    /// <summary>Maximum number of recent journal files retained.</summary>
-    public int RetainedFileCount { get; init; } = 5;
-}
-
-/// <summary>App-private diagnostic files available for support export.</summary>
-public interface IDiagnosticJournal
-{
-    /// <summary>Directory containing the bounded journal files.</summary>
-    string DirectoryPath { get; }
-
-    /// <summary>Writes an application log event without exposing user content by default.</summary>
-    void Write(
-        LogLevel level,
-        string category,
-        string message,
-        Exception? exception = null,
-        IReadOnlyDictionary<string, string>? scope = null,
-        bool flush = false);
-
-    /// <summary>Writes an exception without requiring the logging host to be available.</summary>
-    void WriteException(string source, Exception exception);
-
-    /// <summary>Returns retained journal files, newest first.</summary>
-    IReadOnlyList<string> GetRecentFiles();
-}
-
 /// <summary>
 /// Bounded, synchronous, app-private NDJSON diagnostic journal.
 /// This is safe to call while the logging host is starting or failing.
@@ -196,61 +158,5 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
         public required string M { get; init; }
         public string? X { get; init; }
         public Dictionary<string, string>? S { get; init; }
-    }
-}
-
-/// <summary>Writes <see cref="ILogger"/> events into an <see cref="IDiagnosticJournal"/>.</summary>
-[ProviderAlias("NovolisDiagnosticFile")]
-public sealed class DiagnosticJournalLoggerProvider(IDiagnosticJournal journal) : ILoggerProvider
-{
-    public ILogger CreateLogger(string categoryName) => new JournalLogger(journal, categoryName);
-
-    public void Dispose()
-    {
-    }
-
-    private sealed class JournalLogger(IDiagnosticJournal journal, string category) : ILogger
-    {
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-            if (!IsEnabled(logLevel))
-                return;
-
-            ArgumentNullException.ThrowIfNull(formatter);
-            journal.Write(
-                logLevel,
-                category,
-                formatter(state, exception),
-                exception,
-                flush: logLevel >= LogLevel.Error);
-        }
-    }
-}
-
-/// <summary>Service-registration extensions for durable diagnostic logging.</summary>
-public static class DiagnosticJournalServiceCollectionExtensions
-{
-    /// <summary>Registers a pre-created journal and uses it as an <see cref="ILogger"/> provider.</summary>
-    public static IServiceCollection AddDiagnosticFileLogging(
-        this IServiceCollection services,
-        IDiagnosticJournal journal)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        ArgumentNullException.ThrowIfNull(journal);
-
-        services.TryAddSingleton(journal);
-        services.TryAddSingleton<IDiagnosticJournal>(journal);
-        services.AddLogging(logging => logging.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<ILoggerProvider>(new DiagnosticJournalLoggerProvider(journal))));
-        return services;
     }
 }
