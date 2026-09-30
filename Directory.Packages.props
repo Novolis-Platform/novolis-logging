@@ -13,6 +13,6 @@
     <PackageVersion Include="Novolis.Agent.Core" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Agent.Surface" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Transports.LocalIpc" Version="2026.1.*" />
-    <PackageVersion Include="TUnit" Version="1.68.17" />
+    <PackageVersion Include="TUnit" Version="1.72.4" />
   </ItemGroup>
 </Project>
