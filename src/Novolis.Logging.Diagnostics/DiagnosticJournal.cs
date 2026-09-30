@@ -1,6 +1,5 @@
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
 namespace Novolis.Logging.Diagnostics;
@@ -11,6 +10,12 @@ namespace Novolis.Logging.Diagnostics;
 /// </summary>
 public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
 {
+    private static readonly JsonSerializerOptions LineJson = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private readonly object _gate = new();
     private readonly string _applicationName;
     private readonly long _maximumFileBytes;
@@ -35,16 +40,26 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
         _retainedFileCount = options.RetainedFileCount;
         Directory.CreateDirectory(DirectoryPath);
         _currentPath = CreatePath();
+        var startup = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["process.id"] = Environment.ProcessId,
+            ["runtime"] = Environment.Version.ToString(),
+        };
+        if (options.StartupState is { Count: > 0 })
+        {
+            foreach (var pair in options.StartupState)
+                startup[pair.Key] = pair.Value;
+        }
+
+        if (!startup.ContainsKey("platform"))
+            startup["os"] = Environment.OSVersion.ToString();
+
         Write(
             LogLevel.Information,
             "Novolis.Diagnostics",
             $"Diagnostic journal started for {_applicationName}.",
-            scope: new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["process.id"] = Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["runtime"] = Environment.Version.ToString(),
-                ["os"] = Environment.OSVersion.ToString(),
-            },
+            startup,
+            exception: null,
             flush: true);
     }
 
@@ -60,6 +75,26 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
         IReadOnlyDictionary<string, string>? scope = null,
         bool flush = false)
     {
+        Dictionary<string, object?>? state = null;
+        if (scope is { Count: > 0 })
+        {
+            state = new Dictionary<string, object?>(scope.Count, StringComparer.Ordinal);
+            foreach (var pair in scope)
+                state[pair.Key] = pair.Value;
+        }
+
+        Write(level, category, message, state, exception, flush);
+    }
+
+    /// <inheritdoc />
+    public void Write(
+        LogLevel level,
+        string category,
+        string message,
+        IReadOnlyDictionary<string, object?>? state,
+        Exception? exception = null,
+        bool flush = false)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(category);
         ArgumentNullException.ThrowIfNull(message);
         try
@@ -69,15 +104,17 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
                 ObjectDisposedException.ThrowIf(_disposed, this);
                 var bytes = JsonSerializer.SerializeToUtf8Bytes(new DiagnosticJournalLine
                 {
-                    T = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                    L = (int)level,
-                    C = category,
-                    M = message,
-                    X = exception?.ToString(),
-                    S = scope is { Count: > 0 }
-                        ? new Dictionary<string, string>(scope, StringComparer.Ordinal)
+                    Time = DateTimeOffset.UtcNow.ToString(
+                        "yyyy-MM-ddTHH:mm:ss.fffZ",
+                        System.Globalization.CultureInfo.InvariantCulture),
+                    Level = LevelName((int)level),
+                    Category = category,
+                    Message = message,
+                    Exception = exception?.ToString(),
+                    State = state is { Count: > 0 }
+                        ? new Dictionary<string, object?>(state, StringComparer.Ordinal)
                         : null,
-                }).Append((byte)'\n').ToArray();
+                }, LineJson).Append((byte)'\n').ToArray();
                 if (File.Exists(_currentPath) &&
                     new FileInfo(_currentPath).Length + bytes.Length > _maximumFileBytes)
                     _currentPath = CreatePath();
@@ -164,37 +201,102 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
         {
             using var document = JsonDocument.Parse(rawLine);
             var root = document.RootElement;
-            var level = root.TryGetProperty("L", out var levelValue) &&
-                        levelValue.TryGetInt32(out var parsedLevel)
-                ? parsedLevel
-                : (int)LogLevel.Information;
-            var category = root.TryGetProperty("C", out var categoryValue)
-                ? categoryValue.GetString() ?? string.Empty
-                : string.Empty;
+            var level = ReadLevel(root);
+            var category = ReadString(root, "category") ?? ReadString(root, "C") ?? string.Empty;
             if (!IncludeInSummary(category, level))
                 return false;
 
-            var message = root.TryGetProperty("M", out var messageValue)
-                ? messageValue.GetString() ?? string.Empty
-                : string.Empty;
-            var when = root.TryGetProperty("T", out var timeValue) &&
-                       timeValue.TryGetInt64(out var unixMs)
-                ? DateTimeOffset.FromUnixTimeMilliseconds(unixMs).ToLocalTime()
-                    .ToString("yyyy-MM-dd HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
-                : "unknown-time";
-            var exception = root.TryGetProperty("X", out var exceptionValue) &&
-                            exceptionValue.ValueKind == JsonValueKind.String
-                ? FirstLine(exceptionValue.GetString())
-                : null;
+            var message = ReadString(root, "message") ?? ReadString(root, "M") ?? string.Empty;
+            var when = ReadTime(root);
+            var exception = ReadString(root, "exception") ?? ReadString(root, "X");
+            exception = FirstLine(exception);
+            var state = FormatState(root);
             formatted = string.IsNullOrWhiteSpace(exception)
-                ? $"{when}  {LevelName(level)}  {message}"
-                : $"{when}  {LevelName(level)}  {message} {exception}";
+                ? $"{when}  {LevelName(level)}  {message}{state}"
+                : $"{when}  {LevelName(level)}  {message}{state} {exception}";
             return !string.IsNullOrWhiteSpace(message);
         }
         catch (JsonException)
         {
             return false;
         }
+    }
+
+    private static int ReadLevel(JsonElement root)
+    {
+        if (root.TryGetProperty("level", out var named) && named.ValueKind == JsonValueKind.String)
+        {
+            return named.GetString() switch
+            {
+                "Trace" => (int)LogLevel.Trace,
+                "Debug" => (int)LogLevel.Debug,
+                "Information" => (int)LogLevel.Information,
+                "Warning" => (int)LogLevel.Warning,
+                "Error" => (int)LogLevel.Error,
+                "Critical" => (int)LogLevel.Critical,
+                _ => (int)LogLevel.Information,
+            };
+        }
+
+        return root.TryGetProperty("L", out var levelValue) && levelValue.TryGetInt32(out var parsed)
+            ? parsed
+            : (int)LogLevel.Information;
+    }
+
+    private static string ReadTime(JsonElement root)
+    {
+        if (root.TryGetProperty("time", out var named) &&
+            named.ValueKind == JsonValueKind.String &&
+            DateTimeOffset.TryParse(
+                named.GetString(),
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var parsed))
+        {
+            return parsed.ToLocalTime().ToString(
+                "yyyy-MM-dd HH:mm:ss",
+                System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return root.TryGetProperty("T", out var timeValue) && timeValue.TryGetInt64(out var unixMs)
+            ? DateTimeOffset.FromUnixTimeMilliseconds(unixMs).ToLocalTime().ToString(
+                "yyyy-MM-dd HH:mm:ss",
+                System.Globalization.CultureInfo.InvariantCulture)
+            : "unknown-time";
+    }
+
+    private static string? ReadString(JsonElement root, string name) =>
+        root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static string FormatState(JsonElement root)
+    {
+        if (!root.TryGetProperty("state", out var state) && !root.TryGetProperty("S", out state))
+            return string.Empty;
+        if (state.ValueKind != JsonValueKind.Object)
+            return string.Empty;
+
+        var parts = new List<string>();
+        foreach (var property in state.EnumerateObject())
+        {
+            if (parts.Count == 8)
+                break;
+            var text = property.Value.ValueKind switch
+            {
+                JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                JsonValueKind.Number => property.Value.GetRawText(),
+                JsonValueKind.True => "true",
+                JsonValueKind.False => "false",
+                _ => string.Empty,
+            };
+            if (text.Length > 80)
+                text = text[..80];
+            if (text.Length > 0)
+                parts.Add($"{property.Name}={text}");
+        }
+
+        return parts.Count == 0 ? string.Empty : " " + string.Join(" ", parts);
     }
 
     private static bool IncludeInSummary(string category, int level) =>
@@ -255,11 +357,11 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
 
     private sealed class DiagnosticJournalLine
     {
-        public long T { get; init; }
-        public int L { get; init; }
-        public required string C { get; init; }
-        public required string M { get; init; }
-        public string? X { get; init; }
-        public Dictionary<string, string>? S { get; init; }
+        public required string Time { get; init; }
+        public required string Level { get; init; }
+        public required string Category { get; init; }
+        public required string Message { get; init; }
+        public string? Exception { get; init; }
+        public Dictionary<string, object?>? State { get; init; }
     }
 }

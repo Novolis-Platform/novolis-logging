@@ -19,4 +19,10 @@ public sealed class DiagnosticJournalOptions
 
     /// <summary>Maximum number of recent journal files retained.</summary>
     public int RetainedFileCount { get; init; } = 5;
+
+    /// <summary>
+    /// Extra startup facts merged into the first record. Names such as
+    /// <c>platform</c>, <c>android.api</c>, and <c>app.version</c> belong here.
+    /// </summary>
+    public IReadOnlyDictionary<string, object?>? StartupState { get; init; }
 }

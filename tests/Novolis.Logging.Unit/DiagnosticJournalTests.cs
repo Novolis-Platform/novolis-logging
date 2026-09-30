@@ -23,10 +23,25 @@ public sealed class DiagnosticJournalTests
             var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("unit");
 
             logger.LogError(new InvalidOperationException("boom"), "Failed operation.");
+            DiagnosticLog.Information(
+                logger,
+                "Synthesized audio.",
+                new DiagnosticProperties()
+                    .Set("characters", 680)
+                    .Set("voice", "en-US-AvaNeural")
+                    .Set("elapsedMs", 4964)
+                    .Set("bytes", 283392));
             journal.WriteException("unit", new ArgumentException("bad argument"));
 
             var content = await File.ReadAllTextAsync(journal.GetRecentFiles()[0]);
-            await Assert.That(content).Contains("Failed operation.");
+            await Assert.That(content).Contains("\"message\":\"Failed operation.\"");
+            await Assert.That(content).Contains("\"level\":\"Error\"");
+            await Assert.That(content).Contains("\"message\":\"Synthesized audio.\"");
+            await Assert.That(content).Contains("\"characters\":680");
+            await Assert.That(content).Contains("\"voice\":\"en-US-AvaNeural\"");
+            await Assert.That(content).Contains("\"elapsedMs\":4964");
+            await Assert.That(content).Contains("\"bytes\":283392");
+            await Assert.That(content).Contains("\"time\":\"20");
             await Assert.That(content).Contains("boom");
             await Assert.That(content).Contains("bad argument");
 

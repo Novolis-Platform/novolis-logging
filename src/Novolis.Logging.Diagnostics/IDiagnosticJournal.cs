@@ -20,6 +20,27 @@ public interface IDiagnosticJournal
         IReadOnlyDictionary<string, string>? scope = null,
         bool flush = false);
 
+    /// <summary>Writes an event whose named state keeps numbers as numbers.</summary>
+    void Write(
+        LogLevel level,
+        string category,
+        string message,
+        IReadOnlyDictionary<string, object?>? state,
+        Exception? exception = null,
+        bool flush = false)
+    {
+        IReadOnlyDictionary<string, string>? scope = null;
+        if (state is { Count: > 0 })
+        {
+            var copy = new Dictionary<string, string>(state.Count, StringComparer.Ordinal);
+            foreach (var pair in state)
+                copy[pair.Key] = pair.Value?.ToString() ?? string.Empty;
+            scope = copy;
+        }
+
+        Write(level, category, message, exception, scope, flush);
+    }
+
     /// <summary>Writes an exception without requiring the logging host to be available.</summary>
     void WriteException(string source, Exception exception);
 
