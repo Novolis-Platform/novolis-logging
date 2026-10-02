@@ -2,11 +2,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Novolis.Logging.Ndjson;
 
 namespace Novolis.Logging.Diagnostics;
 
 /// <summary>App-private diagnostic files available for support export.</summary>
-public interface IDiagnosticJournal
+public interface IDiagnosticJournal : INdjsonLogSink
 {
     /// <summary>Directory containing the bounded journal files.</summary>
     string DirectoryPath { get; }

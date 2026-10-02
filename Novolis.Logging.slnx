@@ -3,6 +3,8 @@
     <Project Path="src/Novolis.Logging.Contracts/Novolis.Logging.Contracts.csproj" />
     <Project Path="src/Novolis.Logging.Core/Novolis.Logging.Core.csproj" />
     <Project Path="src/Novolis.Logging.Diagnostics/Novolis.Logging.Diagnostics.csproj" />
+    <Project Path="src/Novolis.Logging.Ndjson/Novolis.Logging.Ndjson.csproj" />
+    <Project Path="src/Novolis.Logging.Telemetry/Novolis.Logging.Telemetry.csproj" />
     <Project Path="src/Novolis.Logging.Transports/Novolis.Logging.Transports.csproj" />
     <Project Path="src/Novolis.Logging.Faster/Novolis.Logging.Faster.csproj" />
     <Project Path="src/Novolis.Logging.Agent/Novolis.Logging.Agent.csproj" />

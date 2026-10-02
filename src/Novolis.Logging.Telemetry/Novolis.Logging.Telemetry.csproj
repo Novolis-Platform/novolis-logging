@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Logging.Telemetry</PackageId>
+    <Description>Opt-in telemetry events persisted as typed NDJSON records.</Description>
+    <IsPackable>true</IsPackable>
+    <RootNamespace>Novolis.Logging.Telemetry</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <LibraryReference Include="Novolis.Logging.Contracts" />
+    <LibraryReference Include="Novolis.Storage.Ndjson" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+</Project>

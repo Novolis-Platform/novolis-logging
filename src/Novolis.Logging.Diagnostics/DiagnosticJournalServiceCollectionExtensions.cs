@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Novolis.Logging.Ndjson;
 
 namespace Novolis.Logging.Diagnostics;
 
@@ -19,7 +20,8 @@ public static class DiagnosticJournalServiceCollectionExtensions
         services.TryAddSingleton(journal);
         services.TryAddSingleton<IDiagnosticJournal>(journal);
         services.AddLogging(logging => logging.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<ILoggerProvider>(new DiagnosticJournalLoggerProvider(journal))));
+            ServiceDescriptor.Singleton<ILoggerProvider>(
+                new NdjsonLoggerProvider(journal))));
         return services;
     }
 }

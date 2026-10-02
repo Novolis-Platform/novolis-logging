@@ -1,7 +1,6 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
-using Novolis.IO.Ndjson;
+using Novolis.Logging.Ndjson;
 
 namespace Novolis.Logging.Diagnostics;
 
@@ -9,21 +8,11 @@ namespace Novolis.Logging.Diagnostics;
 /// Bounded, synchronous, app-private NDJSON diagnostic journal.
 /// This is safe to call while the logging host is starting or failing.
 /// </summary>
-public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
+public sealed class DiagnosticJournal : IDiagnosticJournal, INdjsonLogSink, IDisposable
 {
-    private static readonly JsonSerializerOptions LineJson = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-
     private readonly object _gate = new();
     private readonly string _applicationName;
-    private readonly long _maximumFileBytes;
-    private readonly int _retainedFileCount;
-    private string _currentPath;
-    private NdjsonFileWriter _writer;
-    private int _rollSequence;
+    private readonly NdjsonFileLogSink _sink;
     private bool _disposed;
 
     public DiagnosticJournal(DiagnosticJournalOptions options)
@@ -38,11 +27,13 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
 
         DirectoryPath = Path.GetFullPath(options.DirectoryPath);
         _applicationName = options.ApplicationName.Trim();
-        _maximumFileBytes = options.MaximumFileBytes;
-        _retainedFileCount = options.RetainedFileCount;
-        Directory.CreateDirectory(DirectoryPath);
-        _currentPath = CreatePath();
-        _writer = new NdjsonFileWriter(_currentPath, LineJson);
+        _sink = new NdjsonFileLogSink(new NdjsonFileSinkOptions
+        {
+            DirectoryPath = DirectoryPath,
+            FilePrefix = "diagnostics",
+            MaximumFileBytes = options.MaximumFileBytes,
+            RetainedFileCount = options.RetainedFileCount,
+        });
         var startup = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["process.id"] = Environment.ProcessId,
@@ -68,6 +59,16 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
 
     /// <inheritdoc />
     public string DirectoryPath { get; }
+
+    void INdjsonLogSink.Append(NdjsonLogRecord record, bool flushToDisk)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _sink.Append(record, flushToDisk);
+        }
+    }
 
     /// <inheritdoc />
     public void Write(
@@ -105,29 +106,19 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
             lock (_gate)
             {
                 ObjectDisposedException.ThrowIf(_disposed, this);
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(new DiagnosticJournalLine
-                {
-                    Time = DateTimeOffset.UtcNow.ToString(
-                        "yyyy-MM-ddTHH:mm:ss.fffZ",
-                        System.Globalization.CultureInfo.InvariantCulture),
-                    Level = LevelName((int)level),
-                    Category = category,
-                    Message = message,
-                    Exception = exception?.ToString(),
-                    State = state is { Count: > 0 }
-                        ? new Dictionary<string, object?>(state, StringComparer.Ordinal)
-                        : null,
-                }, LineJson);
-                if (File.Exists(_currentPath) &&
-                    new FileInfo(_currentPath).Length + bytes.Length + 1 > _maximumFileBytes)
-                {
-                    _writer.Dispose();
-                    _currentPath = CreatePath();
-                    _writer = new NdjsonFileWriter(_currentPath, LineJson);
-                }
-
-                _writer.AppendJson(bytes, flush);
-                TrimRetainedFiles();
+                _sink.Append(
+                    new NdjsonLogRecord
+                    {
+                        Time = DateTimeOffset.UtcNow,
+                        Level = LevelName((int)level),
+                        Category = category,
+                        Message = message,
+                        Exception = exception?.ToString(),
+                        State = state is { Count: > 0 }
+                            ? new Dictionary<string, object?>(state, StringComparer.Ordinal)
+                            : null,
+                    },
+                    flushToDisk: flush || level >= LogLevel.Error);
             }
         }
         catch
@@ -145,13 +136,7 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<string> GetRecentFiles() =>
-        Directory.Exists(DirectoryPath)
-            ? Directory.EnumerateFiles(DirectoryPath, "diagnostics-*.ndjson")
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .Take(_retainedFileCount)
-                .ToArray()
-            : Array.Empty<string>();
+    public IReadOnlyList<string> GetRecentFiles() => _sink.GetRecentFiles();
 
     /// <inheritdoc />
     public string ReadRecentSummary(int maxLines = 12)
@@ -330,42 +315,7 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
                 return;
 
             _disposed = true;
-            _writer.Dispose();
+            _sink.Dispose();
         }
-    }
-
-    private string CreatePath()
-    {
-        var stamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff", System.Globalization.CultureInfo.InvariantCulture);
-        return Path.Combine(
-            DirectoryPath,
-            $"diagnostics-{stamp}-{Environment.ProcessId}-{Interlocked.Increment(ref _rollSequence):D2}.ndjson");
-    }
-
-    private void TrimRetainedFiles()
-    {
-        foreach (var path in Directory.EnumerateFiles(DirectoryPath, "diagnostics-*.ndjson")
-                     .OrderByDescending(File.GetLastWriteTimeUtc)
-                     .Skip(_retainedFileCount))
-        {
-            try
-            {
-                File.Delete(path);
-            }
-            catch
-            {
-                // A user may be sharing a file at this moment; retain it until next write.
-            }
-        }
-    }
-
-    private sealed class DiagnosticJournalLine
-    {
-        public required string Time { get; init; }
-        public required string Level { get; init; }
-        public required string Category { get; init; }
-        public required string Message { get; init; }
-        public string? Exception { get; init; }
-        public Dictionary<string, object?>? State { get; init; }
     }
 }

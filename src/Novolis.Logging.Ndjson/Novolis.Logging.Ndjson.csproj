@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Logging.Ndjson</PackageId>
+    <Description>Reusable ILogger provider and rotating NDJSON file sink.</Description>
+    <IsPackable>true</IsPackable>
+    <RootNamespace>Novolis.Logging.Ndjson</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <LibraryReference Include="Novolis.Logging.Contracts" />
+    <LibraryReference Include="Novolis.Storage.Ndjson" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+</Project>

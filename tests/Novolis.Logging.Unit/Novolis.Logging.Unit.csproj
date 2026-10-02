@@ -15,6 +15,8 @@
     <ProjectReference Include="..\..\src\Novolis.Logging.Contracts\Novolis.Logging.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Novolis.Logging.Core\Novolis.Logging.Core.csproj" />
     <ProjectReference Include="..\..\src\Novolis.Logging.Diagnostics\Novolis.Logging.Diagnostics.csproj" />
+    <ProjectReference Include="..\..\src\Novolis.Logging.Ndjson\Novolis.Logging.Ndjson.csproj" />
+    <ProjectReference Include="..\..\src\Novolis.Logging.Telemetry\Novolis.Logging.Telemetry.csproj" />
     <ProjectReference Include="..\..\src\Novolis.Logging.Transports\Novolis.Logging.Transports.csproj" />
     <ProjectReference Include="..\..\src\Novolis.Logging.Faster\Novolis.Logging.Faster.csproj" />
     <ProjectReference Include="..\..\src\Novolis.Logging.Agent\Novolis.Logging.Agent.csproj" />

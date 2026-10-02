@@ -1,7 +1,9 @@
+using Novolis.Logging.Ndjson;
+
 namespace Novolis.Logging.Diagnostics;
 
 /// <summary>Logger state whose message stays short and whose values keep their names.</summary>
-internal sealed class DiagnosticEvent
+internal sealed class DiagnosticEvent : INdjsonStructuredState
 {
     public DiagnosticEvent(string message, Dictionary<string, object?>? properties)
     {
@@ -11,5 +13,5 @@ internal sealed class DiagnosticEvent
 
     public string Message { get; }
 
-    public Dictionary<string, object?>? Properties { get; }
+    public IReadOnlyDictionary<string, object?>? Properties { get; }
 }
