@@ -119,7 +119,7 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
                         : null,
                 }, LineJson);
                 if (File.Exists(_currentPath) &&
-                    new FileInfo(_currentPath).Length + bytes.Length > _maximumFileBytes)
+                    new FileInfo(_currentPath).Length + bytes.Length + 1 > _maximumFileBytes)
                 {
                     _writer.Dispose();
                     _currentPath = CreatePath();
