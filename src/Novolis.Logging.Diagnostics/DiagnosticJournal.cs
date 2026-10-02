@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
+using Novolis.IO.Ndjson;
 
 namespace Novolis.Logging.Diagnostics;
 
@@ -21,6 +22,7 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
     private readonly long _maximumFileBytes;
     private readonly int _retainedFileCount;
     private string _currentPath;
+    private NdjsonFileWriter _writer;
     private int _rollSequence;
     private bool _disposed;
 
@@ -40,6 +42,7 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
         _retainedFileCount = options.RetainedFileCount;
         Directory.CreateDirectory(DirectoryPath);
         _currentPath = CreatePath();
+        _writer = new NdjsonFileWriter(_currentPath, LineJson);
         var startup = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["process.id"] = Environment.ProcessId,
@@ -114,21 +117,16 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
                     State = state is { Count: > 0 }
                         ? new Dictionary<string, object?>(state, StringComparer.Ordinal)
                         : null,
-                }, LineJson).Append((byte)'\n').ToArray();
+                }, LineJson);
                 if (File.Exists(_currentPath) &&
                     new FileInfo(_currentPath).Length + bytes.Length > _maximumFileBytes)
+                {
+                    _writer.Dispose();
                     _currentPath = CreatePath();
+                    _writer = new NdjsonFileWriter(_currentPath, LineJson);
+                }
 
-                using var stream = new FileStream(
-                    _currentPath,
-                    FileMode.Append,
-                    FileAccess.Write,
-                    FileShare.Read,
-                    bufferSize: 4_096,
-                    FileOptions.None);
-                stream.Write(bytes);
-                if (flush)
-                    stream.Flush(flushToDisk: true);
+                _writer.AppendJson(bytes, flush);
                 TrimRetainedFiles();
             }
         }
@@ -327,7 +325,13 @@ public sealed class DiagnosticJournal : IDiagnosticJournal, IDisposable
     public void Dispose()
     {
         lock (_gate)
+        {
+            if (_disposed)
+                return;
+
             _disposed = true;
+            _writer.Dispose();
+        }
     }
 
     private string CreatePath()
